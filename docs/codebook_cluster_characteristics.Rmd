@@ -1,0 +1,192 @@
+---
+title: "Codebook: Cluster Characteristics Dataset"
+subtitle: "cluster_characteristics.csv"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(data.table)
+library(ggplot2)
+library(scales)
+d <- fread("../output/cluster_characteristics.csv")
+```
+
+# Dataset Overview
+
+**File:** `outputs/cluster_characteristics.csv`
+**Unit of analysis:** URL cluster — a group of topically related URLs shared on Brazilian Facebook pages during the 2018 and 2022 electoral cycles.
+**Rows:** `r nrow(d)` (`r d[year==2018,.N]` clusters in 2018, `r d[year==2022,.N]` in 2022)
+**Columns:** `r ncol(d)`
+**Missing values:** `weighted_mpas` and `mpas_abs` are `NA` for `r sum(is.na(d$weighted_mpas))` clusters with no domain matched in `proportions.csv`.
+
+---
+
+# Variables
+
+## Identifiers
+
+### `year`
+**Type:** Integer
+**Values:** 2018, 2022
+Election cycle in which the cluster was observed.
+
+### `cluster`
+**Type:** Integer
+**Values:** Unique within each year
+Cluster identifier assigned by the k-means algorithm.
+
+### `label`
+**Type:** Character
+Short descriptive label of the cluster's dominant topic, generated automatically from the top URLs and their content. Example: *"Haddad 2018 PT presidential campaign"*.
+
+### `predicted_categories`
+**Type:** Character
+Automated content category with URL count in parentheses. Example: *"politics (812)"*. In this dataset all clusters are classified as `politics` — finer topic distinctions for RQ1a should be derived from `label` via manual or automated sub-categorisation.
+
+### `topic`
+**Type:** Character
+Cleaned version of `predicted_categories` with the count removed. All values are `"politics"` in the current dataset.
+
+---
+
+## Temporal variables
+
+### `date_start`
+**Type:** Datetime (POSIX)
+Timestamp of the first URL shared in the cluster.
+
+### `date_end`
+**Type:** Datetime (POSIX)
+Timestamp of the last URL shared in the cluster.
+
+### `duration_days`
+**Type:** Numeric
+**Range:** `r round(min(d$duration_days),1)` – `r round(max(d$duration_days),1)` days
+**Mean:** `r round(mean(d$duration_days),1)` | **Median:** `r round(median(d$duration_days),1)`
+Time span between `date_start` and `date_end`. Most clusters span close to the full electoral window (~90 days); shorter clusters reflect more episodic events.
+
+```{r duration-plot, fig.height=3, fig.width=6}
+ggplot(d, aes(x = duration_days, fill = factor(year))) +
+  geom_histogram(binwidth = 5, colour = "white", alpha = 0.8, position = "identity") +
+  scale_fill_manual(values = c("2018" = "#4393c3", "2022" = "#d6604d")) +
+  labs(x = "Duration (days)", y = "Clusters", fill = "Year") +
+  theme_bw(base_size = 10)
+```
+
+---
+
+## Volume variables
+
+### `total_urls`
+**Type:** Integer
+**Range:** `r min(d$total_urls)` – `r max(d$total_urls)` | **Median:** `r median(d$total_urls)`
+Total number of unique URLs in the cluster, including links to social media platforms.
+
+### `n_urls_no_social`
+**Type:** Integer
+**Range:** `r min(d$n_urls_no_social)` – `r max(d$n_urls_no_social)` | **Median:** `r median(d$n_urls_no_social)`
+Unique URLs excluding social media platforms (YouTube, Instagram, Facebook, Twitter/X, TikTok, and others). This is the base for ideology computation.
+
+### `n_domains`
+**Type:** Integer
+**Range:** `r min(d$n_domains)` – `r max(d$n_domains)` | **Median:** `r median(d$n_domains)`
+Number of unique `full_domain` values in the cluster, excluding social media.
+
+---
+
+## Ideology variables
+
+### `weighted_mpas`
+**Type:** Numeric
+**Range:** `r round(min(d$weighted_mpas, na.rm=TRUE),3)` – `r round(max(d$weighted_mpas, na.rm=TRUE),3)` | **Mean:** `r round(mean(d$weighted_mpas, na.rm=TRUE),3)` | **Median:** `r round(median(d$weighted_mpas, na.rm=TRUE),3)`
+**Missing:** `r sum(is.na(d$weighted_mpas))` clusters
+
+URL-frequency-weighted mean of the MPAS scores (Santos 2023) of all domains in the cluster with a valid ideology score. Score ranges from −1 (far left) to +1 (far right). Computed from non-social-media URLs only.
+
+**Formula:** $\text{weighted MPAS} = \frac{\sum_{d} \text{MPAS}_d \times n_d}{\sum_{d \in \text{matched}} n_d}$
+
+where $n_d$ is the number of URLs from domain $d$ in the cluster.
+
+```{r mpas-dist, fig.height=3, fig.width=6}
+ggplot(d[!is.na(weighted_mpas)], aes(x = weighted_mpas, fill = factor(year))) +
+  geom_histogram(binwidth = 0.05, colour = "white", alpha = 0.8, position = "identity") +
+  scale_fill_manual(values = c("2018" = "#4393c3", "2022" = "#d6604d")) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey40") +
+  labs(x = "Weighted MPAS", y = "Clusters", fill = "Year") +
+  theme_bw(base_size = 10)
+```
+
+### `mpas_abs`
+**Type:** Numeric
+**Range:** `r round(min(d$mpas_abs, na.rm=TRUE),3)` – `r round(max(d$mpas_abs, na.rm=TRUE),3)` | **Mean:** `r round(mean(d$mpas_abs, na.rm=TRUE),3)` | **Median:** `r round(median(d$mpas_abs, na.rm=TRUE),3)`
+**Missing:** `r sum(is.na(d$mpas_abs))` clusters
+
+Absolute value of `weighted_mpas`. Operationalises **partisan intensity** regardless of direction: clusters near 0 are centrist or mixed-source; clusters near 1 are strongly partisan (either left or right). Primary independent variable for RQ1.
+
+### `n_matched_urls`
+**Type:** Integer
+**Range:** `r min(d$n_matched_urls)` – `r max(d$n_matched_urls)` | **Median:** `r median(d$n_matched_urls)`
+Number of URLs (excluding social media) whose domain was matched in `proportions.csv`.
+
+### `pct_matched_urls`
+**Type:** Numeric (percentage)
+**Range:** `r min(d$pct_matched_urls)`% – `r max(d$pct_matched_urls)`% | **Median:** `r median(d$pct_matched_urls)`%
+Percentage of non-social-media URLs covered by the MPAS measure. Indicates reliability of `weighted_mpas`: a low value means the ideology score is based on a small fraction of the cluster's URLs.
+
+### `n_matched_domains`
+**Type:** Integer
+**Range:** `r min(d$n_matched_domains)` – `r max(d$n_matched_domains)` | **Median:** `r median(d$n_matched_domains)`
+Number of unique domains matched to an MPAS score.
+
+### `pct_matched_domains`
+**Type:** Numeric (percentage)
+**Range:** `r min(d$pct_matched_domains)`% – `r max(d$pct_matched_domains)`% | **Median:** `r median(d$pct_matched_domains)`%
+Percentage of unique domains (no social media) with a valid MPAS score.
+
+---
+
+## Structural variables
+
+### `pct_social_media`
+**Type:** Numeric (percentage)
+**Range:** `r min(d$pct_social_media)`% – `r max(d$pct_social_media)`% | **Median:** `r median(d$pct_social_media)`%
+Percentage of the cluster's total URLs (`total_urls`) that link to social media platforms. A high value indicates a cluster organised around social platform content rather than news outlets. Social media platforms carry no MPAS score and are excluded from ideology computation.
+
+### `gini_domains`
+**Type:** Numeric
+**Range:** `r round(min(d$gini_domains),3)` – `r round(max(d$gini_domains),3)` | **Mean:** `r round(mean(d$gini_domains),3)` | **Median:** `r round(median(d$gini_domains),3)`
+Gini index of URL concentration across domains within the cluster (computed on non-social-media URLs).
+
+- **0** = perfectly even distribution across all domains
+- **1** = all URLs concentrated in a single domain
+
+A high Gini indicates the cluster is effectively a single-outlet community; a low Gini indicates a diverse multi-source audience. Useful as a validity check on `weighted_mpas` (high Gini + low `pct_matched_urls` means the dominant domain has no ideology score) and as a control variable in models.
+
+---
+
+## Cohesion variables
+
+### `mean_cos_sim_to_centroid`
+**Type:** Numeric
+**Range:** `r round(min(d$mean_cos_sim_to_centroid),3)` – `r round(max(d$mean_cos_sim_to_centroid),3)` | **Mean:** `r round(mean(d$mean_cos_sim_to_centroid),3)` | **Median:** `r round(median(d$mean_cos_sim_to_centroid),3)`
+Mean cosine similarity of all URL embeddings in the cluster to the cluster centroid. Measures **semantic cohesion**: how topically tight the cluster is. Higher values indicate URLs that are more consistently about the same topic.
+
+### `median_cos_sim_to_centroid`
+**Type:** Numeric
+**Range:** `r round(min(d$median_cos_sim_to_centroid),3)` – `r round(max(d$median_cos_sim_to_centroid),3)`
+Median version of the above. Less sensitive to outlier URLs with very low similarity.
+
+---
+
+# Notes for the Secure Environment
+
+- Join to the URL-level engagement data on `year` + `cluster` (or via the `url_rid` → `year_cluster` mapping in `url_rid_year_cluster.csv`).
+- `weighted_mpas` and `mpas_abs` are `NA` for `r sum(is.na(d$weighted_mpas))` clusters — exclude these from ideology models or treat as a separate "unclassified" category.
+- For **RQ1a** (topic moderation): `predicted_categories` is uniformly `"politics"` and cannot serve as a moderator as-is. Topic sub-categories should be derived from manual coding or further automated classification of the `label` field.
+- `pct_matched_urls` should be used as a **weight or filter** in models: clusters with very low coverage (e.g. < 20%) have unreliable `weighted_mpas` estimates.
