@@ -1,0 +1,38 @@
+# --- Data: never commit (Meta URL Shares data cannot leave the SRE) ---------
+rawdata/
+data/
+chunks_BR/
+results/
+*.RData
+*.rda
+*.rds
+*.tsv
+*.csv
+*.parquet
+
+# --- Figures: commit only after SRE output review ----------------------------
+figures/*
+!figures/.gitkeep
+!figures/*.png
+
+# --- R / Jupyter / OS ---------------------------------------------------------
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+.ipynb_checkpoints/
+__pycache__/
+.DS_Store
+Thumbs.db
+
+# --- Part 1: logs, API batch files, credentials -----------------------------
+logs/
+*.jsonl
+*.json
+.env
+.Renviron
+
+# --- Local outputs and rendered reports ---------------------------------------
+output/
+*.html
+*_files/
