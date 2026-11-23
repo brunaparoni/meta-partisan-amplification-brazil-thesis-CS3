@@ -13,8 +13,8 @@ set.seed(123)
 final_km_200 <- kmeans(mat_pca, 
                        centers = 200, 
                        nstart = 20, 
-                       iter.max = 100,      # Aumentiamo i giri massimi
-                       algorithm = "Lloyd") # Cambiamo algoritmo per stabilità
+                       iter.max = 100,      # maximum number of iterations
+                       algorithm = "Lloyd") # Lloyd algorithm for stable convergence
 
 
 # 2. Add to your data
