@@ -181,7 +181,7 @@ for (y in c(2018, 2022)) {
                            n_matched_urls, pct_social_media, label, top_domains)])
   }
 }
-###################à
+###################
 # 1. Filter reliable clusters for ALL years
 rel_all <- cluster[mpas_reliable == TRUE & !is.na(weighted_mpas)]
 
