@@ -10,11 +10,7 @@
 # by the previous one (data, clean_data, mat_pca, mat_sample, ...).
 # =============================================================================
 
-# ============================================
-# SCRIPT COMPLETO DI VALIDAZIONE PER k = 200
-# ============================================
-
-# --- METODO 1: Distanza Perpendicolare ---
+# --- Method 1: perpendicular distance ---
 find_knee <- function(x, y) {
   x_norm <- (x - min(x)) / (max(x) - min(x))
   y_norm <- (y - min(y)) / (max(y) - min(y))
@@ -27,31 +23,31 @@ find_knee <- function(x, y) {
 
 elbow_perp <- find_knee(k_values, wss_values)
 
-# --- METODO 2: Seconda Derivata ---
+# --- Method 2: second derivative ---
 second_deriv <- diff(diff(wss_values))
 elbow_2nd <- k_values[which.max(second_deriv) + 2]
 
-# --- METODO 3: Percentuale di Varianza Spiegata ---
+# --- Method 3: share of WSS reduction ---
 total_var <- wss_values[1] - wss_values[length(wss_values)]
 var_explained <- (wss_values[1] - wss_values) / total_var * 100
 elbow_85pct <- k_values[which(var_explained >= 85)[1]]
 elbow_90pct <- k_values[which(var_explained >= 90)[1]]
 
-# --- RIEPILOGO METODI ELBOW ---
+# --- Elbow summary ---
 cat("\n======================================\n")
-cat("   ANALISI ELBOW - RISULTATI\n")
+cat("   ELBOW ANALYSIS - RESULTS\n")
 cat("======================================\n")
-cat("Distanza perpendicolare:   k =", elbow_perp, "\n")
-cat("Seconda derivata:          k =", elbow_2nd, "\n")
-cat("85% varianza spiegata:     k =", elbow_85pct, "\n")
-cat("90% varianza spiegata:     k =", elbow_90pct, "\n")
-cat("Bayesian Optimization:     k = 200\n")
+cat("Perpendicular distance:    k =", elbow_perp, "\n")
+cat("Second derivative:         k =", elbow_2nd, "\n")
+cat("85% of WSS reduction:      k =", elbow_85pct, "\n")
+cat("90% of WSS reduction:      k =", elbow_90pct, "\n")
+cat("Bayesian optimisation:     k = 200 (upper bound of the search range)\n")
 cat("======================================\n\n")
 
-# --- VALIDAZIONE: Confronta k candidati ---
+# --- Validation: compare candidate k ---
 library(cluster)
 
-# Scegli i k da testare (includi il risultato Bayesian)
+# Candidate k values (elbow methods and k = 200)
 candidate_ks <- c(elbow_perp, elbow_2nd, elbow_85pct, 200)
 candidate_ks <- unique(sort(candidate_ks))
 
@@ -87,7 +83,7 @@ for (i in seq_along(candidate_ks)) {
   validation_results$calinski_harabasz[i] <- ch_index
   
   # Davies-Bouldin Index (lower is better)
-  # Calcolo manuale del DB index
+  # Davies-Bouldin index computed by hand
   centers <- km$centers
   clusters <- km$cluster
   db_values <- numeric(k)
@@ -120,7 +116,7 @@ for (i in seq_along(candidate_ks)) {
 
 summary(validation_results$k)
 
-# Normalizza i metriche (0-1 scale)
+# Rescale each index to 0-1
 validation_results$wss_score <- 1 - (validation_results$wss - min(validation_results$wss)) / 
   (max(validation_results$wss) - min(validation_results$wss))
 validation_results$sil_score <- (validation_results$silhouette - min(validation_results$silhouette)) / 
@@ -130,34 +126,34 @@ validation_results$db_score <- 1 - (validation_results$davies_bouldin - min(vali
 validation_results$ch_score <- (validation_results$calinski_harabasz - min(validation_results$calinski_harabasz)) / 
   (max(validation_results$calinski_harabasz) - min(validation_results$calinski_harabasz))
 
-# Score combinato
+# Combined score (mean of the four rescaled indices)
 validation_results$combined_score <- (validation_results$wss_score + 
                                         validation_results$sil_score + 
                                         validation_results$db_score + 
                                         validation_results$ch_score) / 4
 
-# Ordina per score combinato
+# Sort by combined score
 validation_results <- validation_results[order(-validation_results$combined_score), ]
 
 cat("\n======================================\n")
-cat("   RISULTATI VALIDAZIONE\n")
+cat("   VALIDATION RESULTS\n")
 cat("======================================\n")
 print(validation_results[, c("k", "silhouette", "davies_bouldin", 
                              "calinski_harabasz", "combined_score")])
 
 best_k <- validation_results$k[1]
-cat("\n*** RACCOMANDAZIONE: k =", best_k, "***\n")
+cat("\nHighest combined score: k =", best_k, "\n")
 
-# Se k=200 è nei top 2, consideralo valido
+# Check whether k = 200 is among the two best candidates
 if (200 %in% validation_results$k[1:min(2, nrow(validation_results))]) {
-  cat("\nk = 200 è tra le migliori scelte. Procedi con fiducia!\n")
+  cat("\nk = 200 is among the two best candidates.\n")
 } else {
-  cat("\nk = 200 non è ottimale. Considera k =", best_k, "invece.\n")
+  cat("\nk = 200 is not among the two best candidates; best k =", best_k, "\n")
 }
 
-# --- ANALISI DIMENSIONE CLUSTER per k=200 ---
+# --- Cluster size distribution (k = 200) ---
 cat("\n======================================\n")
-cat("   ANALISI CLUSTER SIZE (k=200)\n")
+cat("   CLUSTER SIZE DISTRIBUTION (k = 200)\n")
 cat("======================================\n")
 
 set.seed(123)
@@ -175,17 +171,17 @@ imbalance_ratio <- max(cluster_sizes) / median(cluster_sizes)
 cat("Imbalance ratio (max/median):", round(imbalance_ratio, 2), "\n")
 
 if (imbalance_ratio > 5) {
-  cat("\n⚠️  WARNING: Cluster molto sbilanciati!\n")
+  cat("\nWarning: clusters are highly unbalanced (max/median > 5).\n")
 } else {
-  cat("\n✓ Distribuzione cluster ragionevole.\n")
+  cat("\nCluster sizes are reasonably balanced (max/median <= 5).\n")
 }
 
 # Plot
 hist(cluster_sizes, breaks = 30, col = "#2E7D32",
-     main = "Distribuzione Dimensioni Cluster (k=200)",
-     xlab = "Posts per cluster", ylab = "Frequenza")
+     main = "Cluster size distribution (k = 200)",
+     xlab = "Posts per cluster", ylab = "Frequency")
 abline(v = median(cluster_sizes), col = "red", lwd = 2, lty = 2)
-legend("topright", legend = "Mediana", col = "red", lty = 2, lwd = 2)
+legend("topright", legend = "Median", col = "red", lty = 2, lwd = 2)
 
 ### Save the workspace ###
 save.image(file = "2018_pca_validation_k.RData")
